@@ -1,0 +1,22 @@
+# ════════════════════════════════════════════════════════════════
+#  BLOQUEIOS PERMANENTES DO CHECK-OUT
+#  Uma regra por linha. O que casar aqui NUNCA aparece no check-out.
+#  Linhas começando com # são comentários. Espaços nas pontas são ignorados.
+#
+#  Formatos aceitos:
+#    repo:<nome>     ignora um repositório git                ex: repo:projeto-secreto
+#    pm2:<nome>      ignora um app do pm2                     ex: pm2:cascata
+#    path:<texto>    ignora comandos/pastas que contenham     ex: path:Guinchomaps
+#    user:<texto>    ignora sessões/sudo que contenham        ex: user:smartctl
+#
+#  Para bloquear na hora, use:  ~/Checkouts/bin/block.sh repo Nome
+#
+#  O install.sh copia este modelo para blocklist.txt (pessoal, fora do git).
+# ════════════════════════════════════════════════════════════════
+
+# Os próprios apps do sistema (não fazem parte do seu trabalho)
+pm2:checkout-diario
+pm2:checkout-studio
+pm2:checkout-tick
+
+# (adicione seus bloqueios abaixo)

@@ -1,0 +1,21 @@
+# ───────────────────────────────────────────────────────────────
+#  DADOS PESSOAIS — NUNCA vão pro repositório.
+#  O código é compartilhado; o que cada pessoa gera fica só na máquina.
+# ───────────────────────────────────────────────────────────────
+
+# Sua configuração e bloqueios reais (use os .example no lugar)
+config.sh
+blocklist.txt
+
+# Seus check-outs reais, organizados por mês (AAAA-MM-Mes/)
+20*-*/
+
+# Logs brutos da sua máquina (digests, hashes, notas do dia)
+.cache/
+logs/
+
+# Lixo comum de SO/editor
+.DS_Store
+*.swp
+*~
+node_modules/
