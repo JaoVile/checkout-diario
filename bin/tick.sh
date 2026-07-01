@@ -8,12 +8,23 @@ BASE="${HOME}/Checkouts"; BIN="${BASE}/bin"
 export PATH="${HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
 RUNLOG="${BASE}/logs/tick-${DATE}.log"
 exec >>"${RUNLOG}" 2>&1
-echo "---- tick $(date '+%T') ----"
 
 # 1) varredura rápida (sem IA)
 bash "${BIN}/collect-activity.sh" "${DATE}" >/dev/null 2>&1
 DIGEST="${BASE}/.cache/digest-${DATE}.txt"
-[ -s "${DIGEST}" ] || { echo "digest vazio, abortando"; exit 0; }
+[ -s "${DIGEST}" ] || { echo "$(date '+%H:%M')  •  digest vazio, abortando"; exit 0; }
+
+# resumo do que está captado agora (p/ a aba de Logs mostrar a evolução)
+digest_summary() {
+  local c w cl n
+  c=$(grep -cE '^  • [0-9]{2}:[0-9]{2} ' "$DIGEST" 2>/dev/null); c=${c:-0}
+  w=$(grep -c 'arquivos sem commit)' "$DIGEST" 2>/dev/null); w=${w:-0}
+  cl=$(grep -c '^### CLAUDE:' "$DIGEST" 2>/dev/null); cl=${cl:-0}
+  n=$(grep -cE '^- \[' "${BASE}/.cache/notas-${DATE}.txt" 2>/dev/null); n=${n:-0}
+  echo "${c} commits · ${w} repos WIP · ${cl} Claude · ${n} notas"
+}
+SUMMARY="$(digest_summary)"
+HM="$(date '+%H:%M')"
 
 # 2) hash só do conteúdo que VIRA trabalho no check-out: [0] notas, [1]/[1b] git, [5] Claude.
 #    Ignora [2] terminal, [3] sistema, [4] pm2, [6] navegador e [7] jornada
@@ -26,12 +37,12 @@ HASHFILE="${BASE}/.cache/lasthash-${DATE}.txt"
 OLD="$(cat "${HASHFILE}" 2>/dev/null || true)"
 
 if [ "${NEWHASH}" = "${OLD}" ]; then
-  echo "sem mudança desde o último tick — preview já está atualizado, pula a IA"
+  echo "${HM}  •  sem mudança — preview já atualizado  ·  ${SUMMARY}"
   exit 0
 fi
 
 # 3) algo mudou → regera o preview (reusa a varredura, SEM pop-up)
-echo "mudança detectada → regerando preview..."
+echo "${HM}  •  MUDANÇA detectada → regerando preview  ·  ${SUMMARY}"
 CHECKOUT_SKIP_COLLECT=1 bash "${BIN}/generate-checkout.sh" "${DATE}" >/dev/null 2>&1 \
-  && { echo "${NEWHASH}" > "${HASHFILE}"; echo "preview pronto ✔"; } \
-  || echo "falha ao regerar (preview anterior mantido)"
+  && { echo "${NEWHASH}" > "${HASHFILE}"; echo "$(date '+%H:%M')  •  preview atualizado ✔  ·  ${SUMMARY}"; } \
+  || echo "$(date '+%H:%M')  •  falha ao regerar (preview anterior mantido)"

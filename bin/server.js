@@ -76,6 +76,7 @@ function state() {
       mode: cfg.CHECKOUT_MODE || 'englobado',
       obsidian_enabled: (cfg.OBSIDIAN_ENABLED ?? '1') !== '0',
       obsidian_vault: cfg.OBSIDIAN_VAULT || '',
+      obsidian_subdir: cfg.OBSIDIAN_SUBDIR || 'Check-outs',
       sources: {
         git: (cfg.CHECKOUT_SRC_GIT ?? '1') !== '0',
         terminal: (cfg.CHECKOUT_SRC_TERMINAL ?? '1') !== '0',
@@ -89,6 +90,7 @@ function state() {
     template: read(TEMPLATE),
     note_today: read(path.join(BASE, '.cache', `notas-${d}.txt`)),
     latest: read(checkoutPath(d)),
+    obsidian_uri: obsidianURI(d),
   };
 }
 function saveConfig(body) {
@@ -120,6 +122,26 @@ function generate(cb) {
     { timeout: 240000, env: { ...process.env, CHECKOUT_NOTIFY: '1' } },
     (err) => cb(err, read(checkoutPath(today()))));
 }
+// URI obsidian:// para abrir o check-out do dia direto no Obsidian
+function obsidianURI(date) {
+  const cfg = getConfig();
+  if ((cfg.OBSIDIAN_ENABLED ?? '1') === '0') return '';
+  const vaultPath = cfg.OBSIDIAN_VAULT || ''; if (!vaultPath) return '';
+  const vault = path.basename(vaultPath);
+  const sub = cfg.OBSIDIAN_SUBDIR || 'Check-outs';
+  const [y, m] = date.split('-');
+  const rel = `${sub}/${y}-${m}-${MONTHS[+m]}/checkout-${date}.md`;
+  return `obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(rel)}`;
+}
+// dados da aba de Logs: atividade dos ticks + o que está captado agora (digest)
+function logsData() {
+  const d = today();
+  return {
+    date: d,
+    tick: read(path.join(BASE, 'logs', `tick-${d}.log`)),
+    digest: read(path.join(BASE, '.cache', `digest-${d}.txt`)),
+  };
+}
 
 // ---------- HTTP ----------
 function send(res, code, type, data) { res.writeHead(code, { 'Content-Type': type }); res.end(data); }
@@ -134,6 +156,7 @@ const server = http.createServer((req, res) => {
   try {
     if (p === '/' || p === '/index.html') return send(res, 200, 'text/html; charset=utf-8', HTML);
     if (p === '/api/state') return json(res, 200, state());
+    if (p === '/api/logs') return json(res, 200, logsData());
     if (p === '/api/config' && req.method === 'POST') return readBody(req, b => { saveConfig(b); json(res, 200, { ok: true }); });
     if (p === '/api/template' && req.method === 'POST') return readBody(req, b => { fs.writeFileSync(TEMPLATE, b.content || ''); json(res, 200, { ok: true }); });
     if (p === '/api/note' && req.method === 'POST') return readBody(req, b => { if (b.text) addNote(b.text); json(res, 200, { ok: true }); });
@@ -174,8 +197,60 @@ pre{background:#0d0f14;border:1px solid var(--bd);border-radius:8px;padding:14px
 .toast.show{opacity:1}.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:r .7s linear infinite;vertical-align:-2px}
 @keyframes r{to{transform:rotate(360deg)}}
 small.note{color:var(--mut)}
+.tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--bd)}
+.tab{background:transparent;border:0;border-bottom:2px solid transparent;color:var(--mut);padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;border-radius:0}
+.tab.active{color:var(--fg);border-bottom-color:var(--ac)}
+.pane{display:none}.pane.active{display:block}
+.pane1{display:grid;grid-template-columns:1fr 320px;gap:16px}@media(max-width:820px){.pane1{grid-template-columns:1fr}}
+pre.big{max-height:none;min-height:60vh;font-size:13.5px;line-height:1.6}
+pre.log{max-height:280px;font-size:12px}
+.metardot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px}
 </style></head><body><div class="wrap">
-<h1>📋 Check-out Studio</h1><div class="sub">Ajuste tudo e gere seu check-out — <span id="today"></span></div>
+<h1>📋 Check-out Studio</h1><div class="sub">Seu check-out do dia — <span id="today"></span></div>
+<div class="tabs">
+  <button class="tab active" data-t="dia" onclick="tab('dia')">📋 Mensagem do dia</button>
+  <button class="tab" data-t="logs" onclick="tab('logs')">📊 Logs & captura</button>
+  <button class="tab" data-t="config" onclick="tab('config')">⚙️ Configuração</button>
+</div>
+
+<!-- ABA 1: MENSAGEM DO DIA -->
+<div class="pane pane1 active" id="pane-dia">
+  <div class="card"><h2>Check-out de hoje</h2>
+    <div class="btns" style="margin:0 0 12px">
+      <button id="gen" onclick="gen()">▶ Gerar agora</button>
+      <button class="ghost" onclick="copyOut()">📋 Copiar</button>
+      <button class="ghost" id="obsBtn" onclick="openObsidian()">🔮 Abrir no Obsidian</button>
+    </div>
+    <pre id="preview" class="big">(carregando…)</pre>
+  </div>
+  <div>
+    <div class="card"><h2>Nota rápida</h2>
+      <small class="note">o que os logs não pegam (reunião, BIOS, presencial…)</small>
+      <div class="row" style="margin-top:8px"><input id="note" type="text" placeholder="digite e clique add"><button class="ghost" style="flex:0 0 auto" onclick="addNote()">add</button></div>
+      <label style="margin-top:12px">Notas de hoje</label>
+      <pre id="notes_today" class="log">(nenhuma)</pre>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Modo</h2>
+      <select id="mode" onchange="saveAll()"><option value="englobado">Englobado (padrão — valoriza tudo)</option><option value="reduzido">Reduzido (sutil — enxuto)</option></select>
+    </div>
+  </div>
+</div>
+
+<!-- ABA 2: LOGS -->
+<div class="pane" id="pane-logs">
+  <div class="card"><h2>Atividade dos ticks (a cada 20 min, 7h–17h)</h2>
+    <small class="note">cada linha = uma varredura: horário, se mudou algo e o que está captado.</small>
+    <pre id="ticklog" class="log" style="max-height:340px;margin-top:10px">(carregando…)</pre>
+    <div class="btns"><button class="ghost" onclick="loadLogs()">↻ Atualizar</button></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h2>Captado agora (digest cru do dia)</h2>
+    <small class="note">exatamente o que o sistema enxergou hoje — a matéria-prima do check-out.</small>
+    <pre id="digest" class="log" style="max-height:420px;margin-top:10px">(carregando…)</pre>
+  </div>
+</div>
+
+<!-- ABA 3: CONFIGURAÇÃO -->
+<div class="pane" id="pane-config">
 <div class="grid">
   <div>
     <div class="card"><h2>Identidade & Obsidian</h2>
@@ -183,8 +258,6 @@ small.note{color:var(--mut)}
       <div class="row"><div><label>Turno</label><select id="turno"><option value="">(automático)</option><option>manhã</option><option>tarde</option><option>noite</option></select></div>
       <div><label>Obsidian</label><div class="chk"><input type="checkbox" id="obs_on"><span>Salvar no vault</span></div></div></div>
       <label>Caminho do vault</label><input id="obs_vault" type="text" placeholder="/home/.../Obsidian Vault">
-      <label>Modo do check-out</label>
-      <select id="mode"><option value="englobado">Englobado (padrão — valoriza tudo que fez)</option><option value="reduzido">Reduzido (sutil — enxuto)</option></select>
     </div>
     <div class="card" style="margin-top:16px"><h2>Fontes de coleta</h2>
       <div class="chk"><input type="checkbox" id="s_git"><span>Git (commits + não-commitado)</span></div>
@@ -197,48 +270,56 @@ small.note{color:var(--mut)}
     <div class="card" style="margin-top:16px"><h2>Bloqueios (não entram no check-out)</h2>
       <div id="blocks"></div>
       <div class="row" style="margin-top:8px">
-        <select id="b_cat" style="flex:0 0 110px"><option value="repo">repo</option><option value="pm2">pm2</option><option value="path">path</option><option value="user">user</option></select>
+        <select id="b_cat" style="flex:0 0 100px"><option value="repo">repo</option><option value="pm2">pm2</option><option value="path">path</option><option value="user">user</option><option value="site">site</option></select>
         <input id="b_val" type="text" placeholder="nome a bloquear">
         <button class="ghost" style="flex:0 0 auto" onclick="addBlock()">+ adicionar</button>
       </div>
     </div>
   </div>
   <div>
-    <div class="card"><h2>Ações</h2>
-      <label>Nota rápida (reunião, BIOS, presencial…)</label>
-      <div class="row"><input id="note" type="text" placeholder="o que os logs não pegam"><button class="ghost" style="flex:0 0 auto" onclick="addNote()">add</button></div>
-      <small class="note" id="notes_today"></small>
-      <div class="btns"><button id="gen" onclick="gen()">▶ Gerar agora</button><button class="ghost" onclick="copyOut()">📋 Copiar</button><button class="ghost" onclick="saveAll()">💾 Salvar ajustes</button></div>
-    </div>
-    <div class="card" style="margin-top:16px"><h2>Preview do check-out</h2><pre id="preview">(carregando…)</pre></div>
-    <div class="card" style="margin-top:16px"><h2>Template (a IA aprende este padrão)</h2>
+    <div class="card"><h2>Template (a IA aprende este padrão)</h2>
       <textarea id="template"></textarea>
       <div class="btns"><button class="ghost" onclick="saveTemplate()">💾 Salvar template</button></div>
     </div>
+    <div class="card" style="margin-top:16px"><h2>Salvar</h2>
+      <small class="note">nome, cargo, turno, Obsidian, fontes e modo.</small>
+      <div class="btns"><button onclick="saveAll()">💾 Salvar ajustes</button></div>
+    </div>
   </div>
-</div></div>
+</div>
+</div>
+
+</div>
 <div class="toast" id="toast"></div>
 <script>
 const $=id=>document.getElementById(id);
 let S={};
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
 async function api(p,m,b){const r=await fetch(p,{method:m||'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json();}
+function tab(t){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+ document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));$('pane-'+t).classList.add('active');
+ if(t==='logs')loadLogs();}
 function renderBlocks(){$('blocks').innerHTML=S.blocks.map(b=>\`<div class="blk"><span class="cat">\${b.cat}</span><span>\${b.val}</span><span class="x" onclick="rmBlock('\${b.cat}','\${b.val.replace(/'/g,"\\\\'")}')">✕</span></div>\`).join('')||'<small class="note">(nenhum)</small>';}
 function load(s){S=s;$('today').textContent=s.today;const c=s.config;
  $('nome').value=c.nome;$('cargo').value=c.cargo;$('turno').value=c.turno;$('mode').value=c.mode||'englobado';
  $('obs_on').checked=c.obsidian_enabled;$('obs_vault').value=c.obsidian_vault;
  $('s_git').checked=c.sources.git;$('s_claude').checked=c.sources.claude;$('s_terminal').checked=c.sources.terminal;$('s_sistema').checked=c.sources.sistema;$('s_pm2').checked=c.sources.pm2;$('s_browser').checked=c.sources.browser;
  $('template').value=s.template;$('preview').textContent=s.latest||'(ainda não gerado hoje — clique em Gerar agora)';
- $('notes_today').textContent=s.note_today?('notas de hoje:\\n'+s.note_today):'';
+ $('notes_today').textContent=s.note_today||'(nenhuma)';
+ $('obsBtn').style.display=s.obsidian_uri?'':'none';
  renderBlocks();}
 async function refresh(){load(await api('/api/state'));}
+async function loadLogs(){const l=await api('/api/logs');
+ $('ticklog').textContent=l.tick||'(sem ticks registrados hoje ainda — o tick roda a cada 20 min das 7h às 17h)';
+ $('digest').textContent=l.digest||'(digest ainda não gerado hoje)';}
 function cfgBody(){return{nome:$('nome').value,cargo:$('cargo').value,turno:$('turno').value,mode:$('mode').value,obsidian_enabled:$('obs_on').checked,obsidian_vault:$('obs_vault').value,sources:{git:$('s_git').checked,claude:$('s_claude').checked,terminal:$('s_terminal').checked,sistema:$('s_sistema').checked,pm2:$('s_pm2').checked,browser:$('s_browser').checked}};}
 async function saveAll(){await api('/api/config','POST',cfgBody());toast('ajustes salvos ✔');}
 async function saveTemplate(){await api('/api/template','POST',{content:$('template').value});toast('template salvo ✔');}
 async function addNote(){const t=$('note').value.trim();if(!t)return;await api('/api/note','POST',{text:t});$('note').value='';toast('nota adicionada ✔');refresh();}
 async function addBlock(){const v=$('b_val').value.trim();if(!v)return;const r=await api('/api/block','POST',{action:'add',cat:$('b_cat').value,val:v});S.blocks=r.blocks;$('b_val').value='';renderBlocks();toast('bloqueado ✔');}
 async function rmBlock(cat,val){const r=await api('/api/block','POST',{action:'remove',cat,val});S.blocks=r.blocks;renderBlocks();toast('removido ✔');}
-async function gen(){const b=$('gen');b.disabled=true;b.innerHTML='<span class="spin"></span> gerando…';await saveAll();const r=await api('/api/generate','POST',{});b.disabled=false;b.textContent='▶ Gerar agora';if(r.ok){$('preview').textContent=r.content;toast('check-out gerado ✔ (copiado e no Obsidian)');}else{toast('erro ao gerar');}}
+async function gen(){const b=$('gen');b.disabled=true;b.innerHTML='<span class="spin"></span> gerando…';await saveAll();const r=await api('/api/generate','POST',{});b.disabled=false;b.textContent='▶ Gerar agora';if(r.ok){$('preview').textContent=r.content;await refresh();toast('check-out gerado ✔ (copiado e no Obsidian)');}else{toast('erro ao gerar');}}
 function copyOut(){const t=$('preview').textContent;navigator.clipboard.writeText(t).then(()=>toast('copiado pra área de transferência ✔'));}
+function openObsidian(){if(S.obsidian_uri){window.location.href=S.obsidian_uri;toast('abrindo no Obsidian…');}else{toast('ative o Obsidian na aba Configuração');}}
 refresh();
 </script></body></html>`;

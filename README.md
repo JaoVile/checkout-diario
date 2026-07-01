@@ -45,8 +45,15 @@ interface em `http://127.0.0.1:7717`.
 
 ## Abrir pelo menu (Super → "checkout")
 O `install.sh` cria um atalho de aplicativo. Tecle **Super** e digite **checkout**:
-abre o **Check-out Studio** (garante o servidor no ar e abre a interface, onde
-você vê o preview do dia, gera e ajusta tudo). Launcher: `bin/checkout-app.sh`.
+abre o **Check-out Studio** (garante o servidor no ar e abre a interface).
+Launcher: `bin/checkout-app.sh`.
+
+A interface tem **3 abas**:
+- **📋 Mensagem do dia** — o check-out pronto (gerar, copiar, **abrir no Obsidian**),
+  nota rápida e seletor de modo.
+- **📊 Logs & captura** — a atividade dos ticks (quando rodaram, se mudou algo e
+  quantos commits/WIP/Claude/notas foram captados) + o digest cru do dia.
+- **⚙️ Configuração** — identidade, Obsidian, fontes, bloqueios e template.
 
 ## Modos de uso
 - **Automático**: às 17:50 o pm2 varre o PC e gera (não faz nada).
