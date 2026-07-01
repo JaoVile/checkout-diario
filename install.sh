@@ -48,6 +48,7 @@ check pm2    "instale com: npm i -g pm2  (agendador que mantém tudo ativo)"
 check git    "instale git"
 command -v notify-send >/dev/null 2>&1 && ok "notify-send (pop-up)" || warn "notify-send ausente — sem pop-up (opcional)"
 command -v wl-copy    >/dev/null 2>&1 && ok "wl-copy (clipboard Wayland)" || warn "wl-copy ausente — sem cópia automática (opcional)"
+command -v sqlite3    >/dev/null 2>&1 && ok "sqlite3 (histórico do navegador)" || warn "sqlite3 ausente — sem fonte navegador (opcional): sudo apt install sqlite3"
 
 # 5) Registra no pm2 (se disponível).
 say ""

@@ -34,8 +34,16 @@ GIT_NAME="$(git config --global user.name 2>/dev/null)"
 SINCE="${DATE} 00:00:00"
 UNTIL="${DATE} 23:59:59"
 
+# ── linha do tempo: acumula "HH" de cada fonte com horário p/ a seção [7] JORNADA ──
+TL_HOURS="$(mktemp)"
+trap 'rm -f "${TL_HOURS}"' EXIT
+# offset do fuso em segundos (p/ converter epoch->hora local sem depender de strftime do awk)
+_tzoff="$(date +%z)"                     # ex: -0300
+TZ_OFF=$(( (10#${_tzoff:1:2})*3600 + (10#${_tzoff:3:2})*60 ))
+[ "${_tzoff:0:1}" = "-" ] && TZ_OFF=$(( -TZ_OFF ))
+
 # ── carrega bloqueios (permanentes + do dia) em arrays por categoria ──
-declare -a BLK_REPO BLK_PM2 BLK_PATH BLK_USER
+declare -a BLK_REPO BLK_PM2 BLK_PATH BLK_USER BLK_SITE
 load_blocks() {
   local f="$1"; [ -f "$f" ] || return 0
   local line key val
@@ -52,6 +60,7 @@ load_blocks() {
       pm2)  BLK_PM2+=("$val");;
       path) BLK_PATH+=("$val");;
       user) BLK_USER+=("$val");;
+      site) BLK_SITE+=("$val");;
     esac
   done < "$f"
 }
@@ -119,6 +128,7 @@ for base in "${SEARCH_DIRS[@]}"; do
       echo "  • ${hora}  ${msg}"
       [ -n "$stat" ] && echo "        (${stat})"
       [ -n "$files" ] && echo "$files"
+      echo "${hora%%:*}" >> "$TL_HOURS"   # HH do commit -> linha do tempo
     done <<< "$log"
   done < <(find "$base" -maxdepth 4 -name .git -type d 2>/dev/null)
 done
@@ -168,6 +178,11 @@ if [ -f "$HIST" ]; then
           cmd=$0
           if (cmd !~ /^(ls|cd|clear|pwd|c|h|cn|xh|x|x c|x h)$/) print cmd
       } }' "$HIST" | filter_path | sort | uniq -c | sort -rn | head -60 | sed 's/^ *//;s/^[0-9]* /  $ /'
+    # horas dos comandos -> linha do tempo (epoch->hora local via offset)
+    awk -v s="$day_start" -v e="$day_end" -v off="$TZ_OFF" '
+      /^#[0-9]+$/ { ts=substr($0,2)+0; next }
+      { if (ts>=s && ts<=e && length($0)>0) printf "%02d\n", int(((ts+off)%86400)/3600) }' \
+      "$HIST" >> "$TL_HOURS" 2>/dev/null
   else
     echo "(.bash_history ainda sem timestamps — timestamps passam a valer nas próximas sessões)"
     echo "Últimos comandos relevantes (sem data confiável):"
@@ -237,6 +252,77 @@ if ! on "${CHECKOUT_SRC_CLAUDE:-1}"; then echo "(fonte Claude Code desligada)"; 
 CLAUDE_BLK="$(printf '%s|' "${BLK_REPO[@]:-}" "${BLK_PATH[@]:-}")"
 BLK="$CLAUDE_BLK" node "${BASE}/bin/claude-activity.js" "${DATE}" 2>/dev/null \
   || echo "(não foi possível ler as sessões do Claude Code)"
+fi
+
+# ─────────────────────────────────────────────────────────
+echo
+echo "========== [6] NAVEGADOR — SITES & PESQUISAS =========="
+echo "(histórico do dia — evidência real do que foi pesquisado/consultado)"
+filter_site() {  # remove linhas que casem com BLK_SITE ou BLK_PATH
+  local pats=("${BLK_SITE[@]:-}" "${BLK_PATH[@]:-}") pat
+  pat="$(printf '%s\n' "${pats[@]}" | grep -v '^$' | paste -sd'|')"
+  if [ -z "$pat" ]; then cat; else grep -ivE "$pat"; fi
+}
+if ! on "${CHECKOUT_SRC_BROWSER:-0}"; then
+  echo "(fonte navegador desligada — ligue CHECKOUT_SRC_BROWSER=1 no config)"
+elif ! command -v sqlite3 >/dev/null 2>&1; then
+  echo "(sqlite3 não instalado — 'sudo apt install sqlite3' p/ captar o histórico)"
+else
+  BROWSER_RAW="$(mktemp)"
+  query_db() {  # $1=arquivo db  $2=expressão SQL de tempo (epoch unix)  $3=tabela visitas  $4=join
+    local db="$1" texpr="$2" ; local tmp="${TMPDIR:-/tmp}/co-$$-$RANDOM.db"
+    cp "$db" "$tmp" 2>/dev/null || return 0
+    cp "${db}-wal" "${tmp}-wal" 2>/dev/null || true   # inclui visitas ainda no WAL
+    sqlite3 -separator "	" "$tmp" "$texpr" 2>/dev/null >> "$BROWSER_RAW"
+    rm -f "$tmp" "${tmp}-wal" "${tmp}-shm"
+  }
+  # Firefox: visit_date em microssegundos desde epoch unix
+  for db in "${HOME_DIR}"/.mozilla/firefox/*/places.sqlite; do
+    [ -f "$db" ] || continue
+    query_db "$db" "SELECT strftime('%H:%M', v.visit_date/1000000,'unixepoch','localtime'), p.url, IFNULL(p.title,'')
+      FROM moz_historyvisits v JOIN moz_places p ON p.id=v.place_id
+      WHERE date(v.visit_date/1000000,'unixepoch','localtime')='${DATE}' ORDER BY v.visit_date;"
+  done
+  # Chromium/Chrome/Brave/Edge/Vivaldi: visit_time em microssegundos desde 1601 (offset 11644473600s)
+  for cdir in google-chrome chromium BraveSoftware/Brave-Browser microsoft-edge vivaldi; do
+    for hist in "${HOME_DIR}/.config/${cdir}"/*/History; do
+      [ -f "$hist" ] || continue
+      query_db "$hist" "SELECT strftime('%H:%M', v.visit_time/1000000-11644473600,'unixepoch','localtime'), u.url, IFNULL(u.title,'')
+        FROM visits v JOIN urls u ON u.id=v.url
+        WHERE date(v.visit_time/1000000-11644473600,'unixepoch','localtime')='${DATE}' ORDER BY v.visit_time;"
+    done
+  done
+  if [ -s "$BROWSER_RAW" ]; then
+    cut -f1 "$BROWSER_RAW" | cut -d: -f1 >> "$TL_HOURS"   # horas -> linha do tempo
+    echo "Domínios mais acessados (nº de visitas · 1ª hora · exemplo de página):"
+    awk -F'\t' '{
+        url=$2; gsub(/^https?:\/\//,"",url); sub(/\/.*/,"",url); sub(/^www\./,"",url);
+        if(url=="") next
+        if(!(url in first)){first[url]=$1; ttl[url]=$3}
+        cnt[url]++
+      } END { for(d in cnt) printf "%d\t%s\t%s\t%s\n",cnt[d],d,first[d],ttl[d] }' "$BROWSER_RAW" \
+      | filter_site | sort -rn | head -40 \
+      | awk -F'\t' '{printf "  (%dx) %-30s [%s]  %s\n",$1,$2,$3,substr($4,1,60)}'
+  else
+    echo "(sem histórico neste dia — ou o navegador estava aberto travando o banco)"
+  fi
+  rm -f "$BROWSER_RAW"
+fi
+
+# ─────────────────────────────────────────────────────────
+echo
+echo "========== [7] JORNADA — LINHA DO TEMPO (horas reais) =========="
+echo "(quando você esteve ativo, derivado dos horários de commits/comandos/navegação)"
+if [ -s "$TL_HOURS" ]; then
+  first_h="$(sort -n "$TL_HOURS" | grep -E '^[0-9]{2}$' | head -1)"
+  last_h="$(sort -n "$TL_HOURS" | grep -E '^[0-9]{2}$' | tail -1)"
+  active_h="$(sort -u "$TL_HOURS" | grep -cE '^[0-9]{2}$')"
+  echo "Primeira atividade: ${first_h}h · última: ${last_h}h · horas com atividade: ${active_h}"
+  echo "Eventos por hora:"
+  sort "$TL_HOURS" | grep -E '^[0-9]{2}$' | uniq -c \
+    | awk '{c=$1;h=$2;bar="";n=(c>40?40:c);for(i=0;i<n;i++)bar=bar"#";printf "  %sh  %4d  %s\n",h,c,bar}'
+else
+  echo "(sem timestamps suficientes — ative HISTTIMEFORMAT no terminal e/ou as fontes com data)"
 fi
 
 echo

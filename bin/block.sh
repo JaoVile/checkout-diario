@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # block.sh — gerencia a lista de bloqueios permanentes do check-out.
 # Uso:
-#   block.sh repo|pm2|path|user <texto>   adiciona um bloqueio
+#   block.sh repo|pm2|path|user|site <texto>   adiciona um bloqueio
 #   block.sh unblock <texto>              remove qualquer regra que contenha <texto>
 #   block.sh list                         mostra os bloqueios ativos
 set -uo pipefail
@@ -9,7 +9,7 @@ BLOCKFILE="${HOME}/Checkouts/blocklist.txt"
 
 cmd="${1:-list}"
 case "$cmd" in
-  repo|pm2|path|user)
+  repo|pm2|path|user|site)
     val="${2:-}"; [ -z "$val" ] && { echo "uso: block.sh $cmd <texto>"; exit 1; }
     rule="${cmd}:${val}"
     if grep -qxF "$rule" "$BLOCKFILE" 2>/dev/null; then

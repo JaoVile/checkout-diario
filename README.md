@@ -4,7 +4,9 @@ Gera todo dia, às **17:50** (via pm2), um check-out no seu formato a partir de
 **tudo que o PC registrou**:
 - commits git **e mudanças ainda não commitadas** (trabalho em andamento);
 - **trabalho feito via Claude Code** (sessões em `~/.claude/projects`, mesmo sem commit);
-- comandos de terminal, sessões/sudo do sistema (journalctl) e apps do pm2.
+- comandos de terminal, sessões/sudo do sistema (journalctl) e apps do pm2;
+- **histórico do navegador** (Firefox/Chrome/Brave/Edge — o que foi pesquisado/consultado; opcional, requer `sqlite3`);
+- **linha do tempo real** (primeira/última atividade e eventos por hora — dá base honesta pras "horas estimadas").
 
 O texto é escrito pelo Claude no tom do molde. **Toda a varredura é LOCAL** —
 nada sai da sua máquina; só o resumo final passa pelo Claude pra ser redigido.

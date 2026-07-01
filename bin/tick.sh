@@ -16,10 +16,11 @@ DIGEST="${BASE}/.cache/digest-${DATE}.txt"
 [ -s "${DIGEST}" ] || { echo "digest vazio, abortando"; exit 0; }
 
 # 2) hash só do conteúdo que VIRA trabalho no check-out: [0] notas, [1]/[1b] git, [5] Claude.
-#    Ignora [2] terminal, [3] sistema e [4] pm2 (cpu/mem/uptime mudam toda hora = ruído).
+#    Ignora [2] terminal, [3] sistema, [4] pm2, [6] navegador e [7] jornada
+#    (cpu/mem/uptime/abas/horas mudam toda hora = ruído; não devem disparar a IA).
 NEWHASH="$(awk '
   /========== \[0\]/{a=1} /========== \[2\]/{a=0}
-  /========== \[5\]/{b=1} /# FIM DO DIGEST/{b=0}
+  /========== \[5\]/{b=1} /========== \[6\]/{b=0}
   (a||b)' "${DIGEST}" | md5sum | cut -d' ' -f1)"
 HASHFILE="${BASE}/.cache/lasthash-${DATE}.txt"
 OLD="$(cat "${HASHFILE}" 2>/dev/null || true)"

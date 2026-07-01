@@ -23,3 +23,5 @@ export CHECKOUT_SRC_TERMINAL=1   # histórico de comandos
 export CHECKOUT_SRC_SISTEMA=1    # journalctl (sessões/sudo/erros)
 export CHECKOUT_SRC_PM2=1        # apps do pm2
 export CHECKOUT_SRC_CLAUDE=1     # trabalho via Claude Code
+export CHECKOUT_SRC_BROWSER=0    # histórico do navegador (Firefox/Chrome/Brave/Edge). Requer sqlite3.
+                                 # Desligado por padrão (privacidade); ligue com 1 se quiser captar pesquisas.

@@ -82,6 +82,7 @@ function state() {
         sistema: (cfg.CHECKOUT_SRC_SISTEMA ?? '1') !== '0',
         pm2: (cfg.CHECKOUT_SRC_PM2 ?? '1') !== '0',
         claude: (cfg.CHECKOUT_SRC_CLAUDE ?? '1') !== '0',
+        browser: (cfg.CHECKOUT_SRC_BROWSER ?? '0') !== '0',
       },
     },
     blocks: getBlocks(),
@@ -104,6 +105,7 @@ function saveConfig(body) {
   c = setVal(c, 'CHECKOUT_SRC_SISTEMA', s.sistema ? 1 : 0, false);
   c = setVal(c, 'CHECKOUT_SRC_PM2', s.pm2 ? 1 : 0, false);
   c = setVal(c, 'CHECKOUT_SRC_CLAUDE', s.claude ? 1 : 0, false);
+  c = setVal(c, 'CHECKOUT_SRC_BROWSER', s.browser ? 1 : 0, false);
   fs.writeFileSync(CONFIG, c);
 }
 function addNote(text) {
@@ -190,6 +192,7 @@ small.note{color:var(--mut)}
       <div class="chk"><input type="checkbox" id="s_terminal"><span>Terminal (histórico)</span></div>
       <div class="chk"><input type="checkbox" id="s_sistema"><span>Sistema (journalctl)</span></div>
       <div class="chk"><input type="checkbox" id="s_pm2"><span>pm2 (apps)</span></div>
+      <div class="chk"><input type="checkbox" id="s_browser"><span>Navegador (histórico/pesquisas — requer sqlite3)</span></div>
     </div>
     <div class="card" style="margin-top:16px"><h2>Bloqueios (não entram no check-out)</h2>
       <div id="blocks"></div>
@@ -224,12 +227,12 @@ function renderBlocks(){$('blocks').innerHTML=S.blocks.map(b=>\`<div class="blk"
 function load(s){S=s;$('today').textContent=s.today;const c=s.config;
  $('nome').value=c.nome;$('cargo').value=c.cargo;$('turno').value=c.turno;$('mode').value=c.mode||'englobado';
  $('obs_on').checked=c.obsidian_enabled;$('obs_vault').value=c.obsidian_vault;
- $('s_git').checked=c.sources.git;$('s_claude').checked=c.sources.claude;$('s_terminal').checked=c.sources.terminal;$('s_sistema').checked=c.sources.sistema;$('s_pm2').checked=c.sources.pm2;
+ $('s_git').checked=c.sources.git;$('s_claude').checked=c.sources.claude;$('s_terminal').checked=c.sources.terminal;$('s_sistema').checked=c.sources.sistema;$('s_pm2').checked=c.sources.pm2;$('s_browser').checked=c.sources.browser;
  $('template').value=s.template;$('preview').textContent=s.latest||'(ainda não gerado hoje — clique em Gerar agora)';
  $('notes_today').textContent=s.note_today?('notas de hoje:\\n'+s.note_today):'';
  renderBlocks();}
 async function refresh(){load(await api('/api/state'));}
-function cfgBody(){return{nome:$('nome').value,cargo:$('cargo').value,turno:$('turno').value,mode:$('mode').value,obsidian_enabled:$('obs_on').checked,obsidian_vault:$('obs_vault').value,sources:{git:$('s_git').checked,claude:$('s_claude').checked,terminal:$('s_terminal').checked,sistema:$('s_sistema').checked,pm2:$('s_pm2').checked}};}
+function cfgBody(){return{nome:$('nome').value,cargo:$('cargo').value,turno:$('turno').value,mode:$('mode').value,obsidian_enabled:$('obs_on').checked,obsidian_vault:$('obs_vault').value,sources:{git:$('s_git').checked,claude:$('s_claude').checked,terminal:$('s_terminal').checked,sistema:$('s_sistema').checked,pm2:$('s_pm2').checked,browser:$('s_browser').checked}};}
 async function saveAll(){await api('/api/config','POST',cfgBody());toast('ajustes salvos ✔');}
 async function saveTemplate(){await api('/api/template','POST',{content:$('template').value});toast('template salvo ✔');}
 async function addNote(){const t=$('note').value.trim();if(!t)return;await api('/api/note','POST',{text:t});$('note').value='';toast('nota adicionada ✔');refresh();}
