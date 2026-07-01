@@ -43,6 +43,11 @@ interface em `http://127.0.0.1:7717`.
   exemplo preenchido: a IA **aprende o padrão** dele (tamanho dos bullets, tom, seções).
   É aqui que cada pessoa põe o jeito dela.
 
+## Abrir pelo menu (Super → "checkout")
+O `install.sh` cria um atalho de aplicativo. Tecle **Super** e digite **checkout**:
+abre o **Check-out Studio** (garante o servidor no ar e abre a interface, onde
+você vê o preview do dia, gera e ajusta tudo). Launcher: `bin/checkout-app.sh`.
+
 ## Modos de uso
 - **Automático**: às 17:50 o pm2 varre o PC e gera (não faz nada).
 - **Híbrido (padrão)**: durante o dia, registre o que os logs não pegam:

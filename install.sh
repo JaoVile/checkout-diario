@@ -66,9 +66,19 @@ else
   say  "      npm i -g pm2 && pm2 start ${BASE}/ecosystem.checkout.config.cjs && pm2 save"
 fi
 
+# 6) Instala o atalho de aplicativo (Super → digite "checkout").
+say ""
+say "🖥️  Atalho de aplicativo:"
+APPS="${HOME}/.local/share/applications"
+mkdir -p "${APPS}"
+sed "s#__BASE__#${BASE}#g" "${BASE}/checkout.desktop.example" > "${APPS}/checkout.desktop"
+chmod +x "${BASE}/bin/checkout-app.sh" 2>/dev/null
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "${APPS}" >/dev/null 2>&1
+ok "atalho 'Check-out' instalado — tecle Super e digite \"checkout\""
+
 say ""
 say "✅ Pronto!"
 say "   1) Edite ${BASE}/config.sh (seu nome, cargo, pastas de projeto, Obsidian)."
-say "   2) Interface de ajustes:  http://127.0.0.1:7717"
+say "   2) Abra pelo menu: tecle Super e digite \"checkout\" (ou http://127.0.0.1:7717)."
 say "   3) Gerar agora:           bash ${BASE}/bin/generate-checkout.sh"
 [ "${need_ok}" = 1 ] || say "   ⚠ Instale as dependências que faltaram acima antes de usar."

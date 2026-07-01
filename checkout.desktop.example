@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Check-out
+GenericName=Check-out diário
+Comment=Abre o Check-out Studio: veja o preview do dia, gere e ajuste
+Exec=__BASE__/bin/checkout-app.sh
+Icon=__BASE__/assets/checkout.svg
+Terminal=false
+Categories=Utility;
+Keywords=checkout;check-out;diario;diário;relatorio;relatório;trabalho;studio;
+StartupNotify=true
