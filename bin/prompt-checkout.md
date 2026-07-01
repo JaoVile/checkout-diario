@@ -8,7 +8,9 @@ REGRAS:
   1. **Commits git** (seção [1]) — trabalho concluído e versionado.
   2. **Trabalho não-commitado** (seção [1b]) — arquivos alterados/criados hoje sem commit; conta como trabalho feito/em andamento.
   3. **Sessões do Claude Code** (seção [5]) — trabalho assistido por IA, mesmo SEM commit. Traz "O que foi pedido" e o "Resumo do Claude (o que foi feito / o que falta)". Baseie os ✔️ no que o resumo diz que **foi feito**; jogue o que **falta/próximos passos** para ⏳ PENDENTE. NUNCA ignore um projeto só por não ter commit.
-- Combine as fontes por projeto (commit + não-commitado + Claude + nota da mesma área = um bloco só).
+  4. **Navegador** (seção [6], se houver) — sites/sistemas/pesquisas do dia (domínio, nº de visitas, título). É evidência REAL do que foi usado e investigado. Use para: (a) identificar sistemas/painéis/ferramentas em que a pessoa trabalhou — muitos acessos a um dashboard, painel de gestão, app interno ou localhost = trabalho naquele sistema, vira bloco de projeto; (b) registrar pesquisa/investigação técnica relevante (documentação, Stack Overflow, APIs, fóruns). Peso pela contagem de visitas. **NÃO** transforme cada site isolado em tarefa e **IGNORE** o que é claramente lazer/pessoal (vídeos, redes sociais, e-mail/WhatsApp pessoal) — a não ser que sejam inequivocamente de trabalho. Se o dia foi majoritariamente no navegador em sistemas de trabalho, o check-out DEVE refletir isso.
+  5. **Jornada / linha do tempo** (seção [7], se houver) — primeira/última atividade e eventos por hora. Use como base para o TURNO e para estimar HORAS reais (não invente horário fora dessa janela).
+- Combine as fontes por projeto (commit + não-commitado + Claude + navegador + nota da mesma área = um bloco só).
 - Bullets ✔️: 2 a 5 por projeto, **interpretando** em linguagem natural (não cole mensagem crua de commit nem prompt cru).
 - **Tempo**: estime por projeto a partir dos horários. Se a NOTA MANUAL disser o tempo, use-o. Some no total. Sem base, escreva "⏱️ Tempo estimado".
 - **Turno**: {TURNO_INSTR}
